@@ -1,0 +1,54 @@
+Stay Class main variables
+
+#from 3 main frames
+self.name             #name of property:    'name'
+self.owner            #Use .get():          'y/n'
+self.guest            #Use .get():          'name'
+self.email            #Use .get():          'email'
+self.adults           #Use .get():          '0'
+self.kids             #Use .get():          '0'
+self.babies           #Use .get():          '0'
+self.party            #nº of ages of party: '000' (Adults, Children, Babies)
+self.total_people     #total nº in party:    int
+self.arrival          #Use .get():          'DD/MM/YYYY'
+self.departure        #Use .get():          'DD/MM/YYYY'
+self.transport        #Use .get():          'name'
+self.flights          #dict of details:     'in_no','in_time','out_no','out_time'
+self.carhire          #Use .get():          'y/n'
+self.eta_hrs          #Use .get():          'HH'
+self.eta_mins         #Use .get():          'MM'
+self.eta              #ETA for arrival:     'HH:MM'
+self.security         #Use .get():          'y/n'
+
+self.clean            #Use .get():          'y/n/o' (Full, None, Other)
+self.clean_dict       #dict custom clean:   'description','charge'
+self.meetgreet        #Use .get():          'y/n'
+
+self.airport_transfer #Use .get():          'y/n'
+self.welcome_pack     #Use .get():          'y/n'
+self.cot              #Use .get():          'y/n'
+self.high_chair       #Use .get():          'y/n'
+self.extras_string    #extras selection:    'yyyy/nnnn'
+                      (Airport Transfer, Welcome Pack, Cot, High Chair)
+
+#from charges frames
+###OWNER
+self.clean_charge           #Use .get():    '0.00'
+self.clean_desc             #string:        'text'
+self.meetgreet_charge       #Use .get():    '0.00'
+self.meetgreet_desc         #string:        'text'
+self.custom_owner_charge    #Use .get():    '0.00'
+self.custom_o_description   #Use .get():    'text'
+self.owner_custom_saved     #string:        'text'
+self.owner_total            #float:          0.0
+
+###GUEST
+self.list_guest_charges     #list of tups of label name, box var, description
+    self.guest_meetgreet    #Use .get():    '0.00'
+    self.transfer_charge    #Use .get():    '0.00'
+    self.pack_charge        #Use .get():    '0.00'
+    self.cot_chair_charge   #Use .get():    '0.00'
+self.custom_guest_charge    #Use .get():    '0.00'
+self.custom_g_description   #Use .get():    'text'
+self.guest_custom_saved     #string:        'text'
+self.guest_total            #float:          0.0
