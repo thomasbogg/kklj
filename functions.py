@@ -15,7 +15,6 @@
 import sqlite3
 
 
-
 # function to return accurate description and charge of the clean
 def clean_calc(property, people):
 
@@ -24,123 +23,123 @@ def clean_calc(property, people):
     cur = conn.cursor()
 
     cur.execute('SELECT bedrooms FROM Properties WHERE name=?', (property,))
-    bed_no = cur.fetchone()[0]  # variable to hold correct num of bedrooms
+    bed_number = cur.fetchone()[0]  # variable to hold correct num of bedrooms
     # cleaning prices are dependent on nº of bedrooms and nº of people staying
 
-    if bed_no == 1:
+    # two options for the clean: Normal Full or Extra Person Full
+    cln = ('Full Clean', 'Full Cln +pax')
+
+    if bed_number == 1:
         if people <= 2:
-            return 'Full Clean', '65.00'
+            return cln[0], '65.00'
         else:
-            return 'Full Clean +pax', '75.00'
-    elif bed_no == 2:
+            return cln[1], '75.00'
+    elif bed_number == 2:
         if people <= 4:
-            return 'Full Clean', '85.00'
+            return cln[0], '85.00'
         else:
-            return 'Full Clean +pax', '95.00'
+            return cln[1], '95.00'
     else:
         if people <= 6:
-            return 'Full Clean', '105.00'
+            return cln[0], '105.00'
         else:
-            return 'Full Clean +pax', '115.00'
+            return cln[1], '115.00'
 
+
+# simple function to split a date string formatted as 'dd/mm/yyyy'
+def split_date(date):
+
+    split = date.split('/')
+
+    day =   split[0]
+    month = split[1]
+    year =  split[2]
+
+    return day, month, year
 
 
 # function to calculate the number of days difference between two given dates
 def count_days(in_date, out_date):
 
     # break up arrival and departure dates according to their 'dd/mm/yyyy' format
-    # dates are given as strings
-    # GLOSSARY:
-        # - arr : arrival
-        # - der : departure
-    arr_day =   int(in_date[0:2])
-    arr_month = int(in_date[3:5])
-    arr_year =  int(in_date[6:])
+    # call on split_dates() function
+    in_day, in_month, in_year =     split_date(in_date)
+    out_day, out_month, out_year =  split_date(out_date)
 
-    der_day =   int(out_date[0:2])
-    der_month = int(out_date[3:5])
-    der_year =  int(out_date[6:])
-
-    # prepare tuples of months and months by nº of days
-    months = (  1, 2, 3, 5, 5, 6,
-                7, 8, 9, 10, 11, 12 )
 
     # conditionals to determine the right mathematical considerations to apply
-    if arr_year == der_year:
+    if in_year == out_year:
 
-        if arr_month == der_month:  # if months same, simple subtraction
-            return der_day - arr_day
-
+        if in_month == out_month:  # if months same, simple subtraction
+            first_month = 0
         else:
             # establish number of days in arrival month, call on suppl function
-            first_month = days_in_month(arr_month, arr_year)
-            # check nº of months apart
-            difference = der_month - arr_month
-            if difference == 1:     # if only 1 month diff, ## most likely ##
-                return first_month - arr_day + der_day
+            first_month = days_in_month(in_month, in_year)
 
-            else:
-                # get index values of months for new iteration
-                months_by_days = 0  # initiate variable to hold number of days per month
-                # looking for months after arr_month and before der_month
-                for n in range(     months.index(arr_month) + 1,
-                                    months.index(der_month)         ):
+        # check nº of months apart
+        in_between_days = days_by_months(in_month, out_month, in_year)
 
-                    months_by_days += days_in_month(months[n], arr_year)
-
-                # return with numbers of days of months in between
-                return (    first_month -
-                            arr_day +
-                            der_day +
-                            months_by_days  )
+        # return with numbers of days of months in between, could be 0
+        return (
+                        first_month     -
+                        in_day          +
+                        out_day         +
+                        in_between_days
+                    )
     else:
         # safely presume the difference between years is never more than 1
         # focus on determining months between
-        first_month = days_in_month(arr_month, arr_year)
-        # check for nº of months left in arr_year
-        months_left_arr_year = 12 - arr_month
-        # start arr year months days count at 0, add if months in between
-        old_year_months_by_days = 0
-        if months_left_arr_year > 0:
-            # iterate to determine days left in months arr year
-            # start at 1 (because > 0) and stop at one number before months left
-            for n in range(1, months_left_arr_year + 1):
-                old_year_months_by_days += days_in_month(months[arr_month -
-                                                                1 + n],
-                                                                arr_year        )
+        first_month = days_in_month(in_month, in_year)
+        # check for nº of days left in months apart from in and out months
+        old_year_months_by_days = days_in_months(in_month, 12, in_year)
+        new_year_months_by_days = days_in_months(1, out_month, out_year)
 
-        # now do the same for months until departure
-        # simple index of month in months will give correct number
-        months_left_der_year = months.index(der_month)
-        # start der year months days count a 0, add if months in between
-        new_year_months_by_days = 0
-        if months_left_der_year > 0:
-            for n in range(0, der_month - 1):
-                new_year_months_by_days += days_in_month(months[n], der_year)
-
-        return (    first_month - arr_day +
+        return (
+                    first_month             -
+                    in_day                  +
                     old_year_months_by_days +
                     new_year_months_by_days +
-                    der_day                     )
-
+                    out_day
+                )
 
 
 # suppl of the days_in_stay function, to determine nº of days in given month
 def days_in_month(month, year):
-    thirty = (  4, 6, 9, 11             )
+
     thirty1 = ( 1, 3, 5, 7, 8, 10, 12   )
-    for m in thirty:    # check for a 30-day month
-        if month == m:
-            return 30
+    thirty = (  4, 6, 9, 11             )
+
     for m in thirty1:   # check for a 31-day month
         if month == m:
             return 31
+
+    for m in thirty:    # check for a 30-day month
+        if month == m:
+            return 30
+
     if month == 2:   # check for a February month
         if year != 2024 and year != 2028:   # check for leap
             return 28
         else:
             return 29
 
+
+# calculates the number of days between two months at least two months apart
+def days_in_months(start_month, end_month, year):
+
+    if end_month - start_month == 0:
+        return 0
+
+    else:
+        # prepare tuples of months and months by nº of days
+        months = (1, 2, 3, 5, 5, 6, 7, 8, 9, 10, 11, 12)
+        days_in_between = 0
+
+        for n in range(months.index(start_month) + 1, months.index(end_month)):
+
+            days_in_between += days_in_month(months[n], year)
+
+        return days_in_between
 
 
 # function to set pre-generated arrival and departure dates in the Main Frame
@@ -150,19 +149,16 @@ def days_in_month(month, year):
 def set_date(date, type):
 
     # convert dd, mm, and yyyy to integer for simple processing
-    day =   int(date[:2])
-    month = int(date[3:5])
-    year =  int(date[6:])
-
+    day, month, year = split_dates(date)
 
     # check type of date being processed, add relevant future time respectively
     if type == 'e':       # 'e' for end_date
         added = 7
-    elif type == 'a':     # 'a' for arrival
+    elif type == 'a':     # 'a' for arrival in 14 days
         added = 14
-    elif type == 'd':     # 'd' for departure
+    elif type == 'd':     # 'd' for departure in 21 days
         added = 21
-    elif type == '-5':    # '-5' for the last 5 days
+    elif type == '-5':    # '-5' for 5 days ago
         added = -5
 
     # call on days_in_month() in this module to determine month length
@@ -212,13 +208,9 @@ def set_date(date, type):
 # returns a list of strings of all dates between two given dates, inclusive
 def between_dates(start, end):
 
-    start_d = int(start[:2])
-    start_m = int(start[3:5])
-    start_y = int(start[6:])
-
-    end_d = int(end[:2])
-    end_m = int(end[3:5])
-    end_y = int(end[6:])
+    # split dates into their components, call on function
+    s_day, s_month, s_year =    split_date(start)
+    e_day, e_month, e_year =    split_date(end)
 
     dates_list = list()
 
