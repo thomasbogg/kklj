@@ -15,6 +15,9 @@
 import sqlite3
 
 
+def main():
+    pass
+
 # function to return accurate description and charge of the clean
 def clean_calc(property, people):
 
@@ -28,22 +31,22 @@ def clean_calc(property, people):
 
     # two options for the clean: Normal Full or Extra Person Full
     cln = ('Full Clean', 'Full Cln +pax')
+    prc = ('65.00', '75.00', '85.00', '95.00', '105.00', '115.00')
 
-    if bed_number == 1:
-        if people <= 2:
-            return cln[0], '65.00'
-        else:
-            return cln[1], '75.00'
+    if bed_number == 1 and people <= 2:
+        return cln[0], prc[0]
+    elif bed_number == 1:
+        return cln[1], prc[1]
+
+    elif bed_number == 2 and people <= 4:
+        return cln[0], prc[2]
     elif bed_number == 2:
-        if people <= 4:
-            return cln[0], '85.00'
-        else:
-            return cln[1], '95.00'
+        return cln[1], prc[3]
+
+    elif bed_number == 3 and people <= 6:
+        return cln[0], prc[4]
     else:
-        if people <= 6:
-            return cln[0], '105.00'
-        else:
-            return cln[1], '115.00'
+        return cln[1], prc[5]
 
 
 # simple function to split a date string formatted as 'dd/mm/yyyy'
@@ -51,9 +54,9 @@ def split_date(date):
 
     split = date.split('/')
 
-    day =   split[0]
-    month = split[1]
-    year =  split[2]
+    day =   int(split[0])
+    month = int(split[1])
+    year =  int(split[2])
 
     return day, month, year
 
@@ -66,34 +69,40 @@ def count_days(in_date, out_date):
     in_day, in_month, in_year =     split_date(in_date)
     out_day, out_month, out_year =  split_date(out_date)
 
+    # first, establish difference between months to accurately count days left
+    # in first month to subtract from in_day if stay spills into another month
+    if in_month == out_month and in_year == out_year:
+        first_month = 0
+    else:
+        first_month = days_in_month(in_month, in_year)
 
     # conditionals to determine the right mathematical considerations to apply
     if in_year == out_year:
-
-        if in_month == out_month:  # if months same, simple subtraction
-            first_month = 0
-        else:
-            # establish number of days in arrival month, call on suppl function
-            first_month = days_in_month(in_month, in_year)
-
         # check nº of months apart
-        in_between_days = days_by_months(in_month, out_month, in_year)
-
+        in_between_days = days_in_months(in_month, out_month, in_year)
         # return with numbers of days of months in between, could be 0
         return (
-                        first_month     -
-                        in_day          +
-                        out_day         +
-                        in_between_days
-                    )
+                    first_month     -
+                    in_day          +
+                    out_day         +
+                    in_between_days
+                )
     else:
         # safely presume the difference between years is never more than 1
         # focus on determining months between
-        first_month = days_in_month(in_month, in_year)
         # check for nº of days left in months apart from in and out months
-        old_year_months_by_days = days_in_months(in_month, 12, in_year)
-        new_year_months_by_days = days_in_months(1, out_month, out_year)
-
+        old_year_months_by_days = days_in_months(
+                                                    in_month,
+                                                    12,
+                                                    in_year,
+                                                    old_year=True
+                                                )
+        new_year_months_by_days = days_in_months(
+                                                    1,
+                                                    out_month,
+                                                    out_year,
+                                                    new_year=True
+                                                )
         return (
                     first_month             -
                     in_day                  +
@@ -109,7 +118,7 @@ def days_in_month(month, year):
     thirty1 = ( 1, 3, 5, 7, 8, 10, 12   )
     thirty = (  4, 6, 9, 11             )
 
-    for m in thirty1:   # check for a 31-day month
+    for m in thirty1:   # check for a 31-day month  ## most likely ##
         if month == m:
             return 31
 
@@ -118,14 +127,15 @@ def days_in_month(month, year):
             return 30
 
     if month == 2:   # check for a February month
-        if year != 2024 and year != 2028:   # check for leap
+        if year not in (2020, 2024, 2028, 2032):   # check for leap
             return 28
         else:
             return 29
 
 
 # calculates the number of days between two months at least two months apart
-def days_in_months(start_month, end_month, year):
+# if not two months apart, returns 0
+def days_in_months(start_month, end_month, year, old_year=False, new_year=False):
 
     if end_month - start_month == 0:
         return 0
@@ -135,8 +145,14 @@ def days_in_months(start_month, end_month, year):
         months = (1, 2, 3, 5, 5, 6, 7, 8, 9, 10, 11, 12)
         days_in_between = 0
 
-        for n in range(months.index(start_month) + 1, months.index(end_month)):
+        if old_year == True:
+            rng = range(start_month, 12) # index from 1 above start until Dec
+        elif new_year == True:
+            rng = range(0, end_month - 1) # index from Jan until 1 below end
+        else:
+            rng = range(start_month, end_month - 1) # index between start and end months
 
+        for n in rng:
             days_in_between += days_in_month(months[n], year)
 
         return days_in_between
@@ -146,204 +162,71 @@ def days_in_months(start_month, end_month, year):
 # date entry tkcalendar function. Takes args: date string in 'dd/mm/yyyy' format
 # and specification for type of date, arrival or departure. Will add 14 days to
 # arrival date and 21 to departure date
-def set_date(date, type):
+def set_date(date, added):
 
     # convert dd, mm, and yyyy to integer for simple processing
-    day, month, year = split_dates(date)
+    day, month, year = split_date(date)
 
-    # check type of date being processed, add relevant future time respectively
-    if type == 'e':       # 'e' for end_date
-        added = 7
-    elif type == 'a':     # 'a' for arrival in 14 days
-        added = 14
-    elif type == 'd':     # 'd' for departure in 21 days
-        added = 21
-    elif type == '-5':    # '-5' for 5 days ago
-        added = -5
-
-    # call on days_in_month() in this module to determine month length
-    month_length = days_in_month(month, year)
-
-    # conditional to check what adjustments need to be made to the dates
-    if day + added > month_length:
-        fut_day = day + added - month_length
-        # check for December-January, just add 1 to month if not
-        if month == 12:
-            fut_month = 1
-            fut_year = year + 1
-        else:
-            fut_month = month + 1
-            fut_year = year
-    elif day + added <= 0:
-        if month == 1:
-            fut_month = 12
-            fut_year = year - 1
-        else:
-            fut_month = month - 1
-            fut_year = year
-        fut_day = days_in_month(fut_month, fut_year) + day + added
+    # check for which direction of travel for new date setting
+    if added > 0:
+        change = 1
     else:
-        fut_day = day + added
-        fut_month = month
-        fut_year = year
+        change = -1
+        added = -(added) # change negative given to positive for iteration
+
+    for _ in range(added):
+        day += change
+
+        month_days = days_in_month(month, year) # call once to prep for next
+
+        if day > month_days:
+            day = 1
+            month += 1
+            if month == 13:
+                month = 1
+                year += 1
+
+        if day == 0:
+            day = month_days
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+
+    return date_string(day, month, year)
 
 
-    # prepare string for return
-    fut_date = ''
-    if fut_day < 10:    # look for need to add '0' to the day of final string
-        fut_date += '0' + str(fut_day)
-    else:
-        fut_date += str(fut_day)
-    fut_date += '/'     # add forward-slash separator
-    if fut_month < 10:  # look for need to add '0' to the month of final string
-        fut_date += '0' + str(fut_month)
-    else:
-        fut_date += str(fut_month)
-    fut_date += '/' + str(fut_year) # finish with last separator and year
+def date_string(day, month, year):
 
+    date = ''
 
-    return fut_date
+    if day < 10:    # look for need to add '0' to the day of final string
+        date += '0'
+    date += str(day) + '/'      # add forward-slash separator
+    if month < 10:  # look for need to add '0' to the month of final string
+        date += '0'
+    date += str(month) + '/' + str(year) # finish with last separator and year
+
+    return date
 
 
 # returns a list of strings of all dates between two given dates, inclusive
 def between_dates(start, end):
 
-    # split dates into their components, call on function
-    s_day, s_month, s_year =    split_date(start)
-    e_day, e_month, e_year =    split_date(end)
+    counted_days = count_days(start, end)
 
     dates_list = list()
 
-    if start_y == end_y:
+    present_date = start
 
-        if start_m == end_m:
-
-            for day in range(start_d, end_d + 1):
-
-                if len(str(day)) == 1:
-                    day_string = '0' + str(day)
-                else:
-                    day_string = str(day)
-
-                date_string = day_string + start[2:]
-
-                dates_list.append(date_string)
-
-        else:
-            # look for the rest of the days of start month
-            for day in range(start_d, days_in_month(start_m, start_y) + 1):
-
-                if len(str(day)) == 1:
-                    day_string = '0' + str(day)
-                else:
-                    day_string = str(day)
-
-                date_string = day_string + start[2:]
-
-                dates_list.append(date_string)
-
-
-            # look for in-between months
-            if end_m - start_m > 1:
-
-                for month in range(start_m + 1, end_m):
-
-                    if len(str(month)) == 1:
-                        month_string = '0' + str(month)
-                    else:
-                        month_string = str(month)
-
-                    for day in range(1, days_in_month(month, start_y) + 1):
-
-                        if len(str(day)) == 1:
-                            day_string = '0' + str(day)
-                        else:
-                            day_string = str(day)
-
-                        date_string = day_string + '/' + month_string + start[5:]
-
-                        dates_list.append(date_string)
-
-
-            # add the leftover end month days
-            for day in range(1, end_d + 1):
-
-                if len(str(day)) == 1:
-                    day_string = '0' + str(day)
-                else:
-                    day_string = str(day)
-
-                date_string = day_string + end[2:]
-
-                dates_list.append(date_string)
-
-
-    else:
-
-        # look for the rest of the days of start month
-        for day in range(start_d, days_in_month(start_m, start_y) + 1):
-
-            if len(str(day)) == 1:
-                day_string = '0' + str(day)
-            else:
-                day_string = str(day)
-
-            date_string = day_string + start[2:]
-
-            dates_list.append(date_string)
-
-
-        if start_m < 12:
-            # look for the days in the rest of the months of the start year
-            for month in range(start_m, 13):
-
-                if len(str(month)) == 1:
-                    month_string = '0' + str(month)
-                else:
-                    month_string = str(month)
-
-                for day in range(1, days_in_month(month, start_y) + 1):
-
-                    if len(str(day)) == 1:
-                        day_string = '0' + str(day)
-                    else:
-                        day_string = str(day)
-
-                    date_string = day_string + '/' + month_string + start[5:]
-
-                    dates_list.append(date_string)
-
-        if end_m > 1:
-            for month in range(1, end_m):
-
-                if len(str(month)) == 1:
-                    month_string = '0' + str(month)
-                else:
-                    month_string = str(month)
-
-                for day in range(1, days_in_month(month, end_y) + 1):
-
-                    if len(str(day)) == 1:
-                        day_string = '0' + str(day)
-                    else:
-                        day_string = str(day)
-
-                    date_string = day_string + '/' + month_string + end[5:]
-
-                    dates_list.append(date_string)
-
-
-        # add the leftover end month days
-        for day in range(1, end_d + 1):
-
-            if len(str(day)) == 1:
-                day_string = '0' + str(day)
-            else:
-                day_string = str(day)
-
-            date_string = day_string + end[2:]
-
-            dates_list.append(date_string)
+    for _ in range(counted_days):
+        next_date = set_date(present_date, 1)
+        present_date = next_date
+        dates_list.append(next_date)
 
 
     return dates_list
+
+
+if __name__ == '__main__':
+    main()
